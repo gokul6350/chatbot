@@ -1,0 +1,25 @@
+Sentences found:
+Original: Alzheimer’s disease (AD) is a disorder that causes degeneration of the cells in the brain and is the main cause of dementia.
+Found: Page 1: Abstract: Alzheimer’s disease (AD) is a disorder that causes degeneration of the cells in the brain and
+
+Original: The research is focusing on understanding AD pathology by targeting several mechanisms.
+Found: Page 1: Nowadays, the research is focusing on understanding AD pathology by targeting several mechanisms,
+
+Original: A patient suspected to have AD should undergo several tests, including neurological examination, magnetic resonance imaging (MRI).
+Found: Page 2: A patient suspected to have AD should undergo several tests, including neurological examination,
+
+Original: There is no cure for Alzheimer’s disease, although there are available treatments that just improve the symptoms.
+Found: Page 2: there is no cure for Alzheimer’s disease, although there are available treatments that just improve the 
+
+Original: This review discusses currently available drugs and future theories for the development of new therapies for AD.
+Found: Page 11: currently available drugs and theories for the development of new therapies for AD.
+
+
+Sentences not found:
+AD is considered a multifactorial disease: two main hypotheses were proposed as a cause for AD, cholinergic and amyloid hypotheses.
+Currently, there are only two classes of approved drugs to treat AD, including inhibitors to cholinesterase enzyme and antagonists to N-methyl d-aspartate (NMDA).
+In 1984, The National Institute of Neurological and Communicative Disorders and Stroke (NINCDS) and the Alzheimer’s Disease and Related Disorders Association (ADRDA) formed a work group to establish a clinical diagnostic’s criteria for Alzheimer’s disease.
+Neurofibrillary tangles and amyloid plaques are identified as primary markers.
+
+Total sentences found: 5
+Total sentences not found: 4

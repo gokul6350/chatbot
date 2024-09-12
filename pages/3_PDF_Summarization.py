@@ -1,137 +1,68 @@
-import os
-from PyPDF2 import PdfReader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import streamlit as st
-import google.generativeai as genai
-from langchain.vectorstores import FAISS
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.chains.question_answering import load_qa_chain
-from langchain.prompts import PromptTemplate
+from PyPDF2 import PdfReader
+from openai import OpenAI
+import os
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
-os.getenv("GOOGLE_API_KEY")
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-# read all pdf files and return text
-def get_pdf_text(pdf_docs):
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+# Function to read PDF file
+def read_pdf(file):
+    pdf_reader = PdfReader(file)
     text = ""
-    for pdf in pdf_docs:
-        pdf_reader = PdfReader(pdf)
-        for page in pdf_reader.pages:
-            text += page.extract_text()
+    for page in pdf_reader.pages:
+        text += page.extract_text()
+
     return text
 
-# split text into chunks
-def get_text_chunks(text):
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=10000, chunk_overlap=1000)
-    chunks = splitter.split_text(text)
-    return chunks  # list of strings
-
-# get embeddings for each chunk
-def get_vector_store(chunks):
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001")  # type: ignore
-    vector_store = FAISS.from_texts(chunks, embedding=embeddings)
-    vector_store.save_local("faiss_index")
-
-def get_conversational_chain():
-    prompt_template = """
-    Answer the question as detailed as possible from the provided context, make sure to provide all the details, if the answer is not in
-    provided context just say, "answer is not available in the context", don't provide the wrong answer\n\n
-    Context:\n {context}?\n
-    Question: \n{question}\n
-
-    Answer:
-    """
-    model = ChatGoogleGenerativeAI(model="gemini-pro",
-                                   client=genai,
-                                   temperature=0.3,
-                                   )
-    prompt = PromptTemplate(template=prompt_template,
-                            input_variables=["context", "question"])
-    chain = load_qa_chain(llm=model, chain_type="stuff", prompt=prompt)
-    return chain
-
-def clear_chat_history():
-    st.session_state.messages = [
-        {"role": "assistant", "content": "upload some pdfs and ask me a question"}]
-
-def user_input(user_question):
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001")  # type: ignore
-
-    index_dir = "faiss_index"
-    if not os.path.exists(index_dir):
-        st.error("FAISS index not found. Please upload and process PDFs first.")
-        return {"output_text": "Please upload and process PDFs to create the FAISS index."}
-
-    new_db = FAISS.load_local(index_dir, embeddings, allow_dangerous_deserialization=True)
-    docs = new_db.similarity_search(user_question)
-
-    chain = get_conversational_chain()
-
-    response = chain(
-        {"input_documents": docs, "question": user_question}, return_only_outputs=True, )
-
-    print(response)
-    return response
-
-def main():
-    st.set_page_config(
-        page_title="Gemini PDF Chatbot",
-        page_icon="🤖"
+# Function to summarize text using OpenAI API
+def summarize_text(text):
+    response = client.chat.completions.create(
+        model="gpt-4o-mini-2024-07-18",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant that summarizes text."},
+            {"role": "user", "content": f"Summarize the following text:\n\n{text}"}
+        ],
+        max_tokens=150,
+        temperature=0.5
     )
+    return response.choices[0].message.content.strip()
 
-    # Sidebar for uploading PDF files
-    with st.sidebar:
-        st.title("Menu:")
-        pdf_docs = st.file_uploader(
-            "Upload your PDF Files and Click on the Submit & Process Button", accept_multiple_files=True)
-        if st.button("Submit & Process"):
-            if pdf_docs:
-                with st.spinner("Processing..."):
-                    raw_text = get_pdf_text(pdf_docs)
-                    text_chunks = get_text_chunks(raw_text)
-                    get_vector_store(text_chunks)
-                    st.success("Done")
-            else:
-                st.error("Please upload at least one PDF file.")
+# Function to estimate token cost
+def estimate_token_cost(text_length):
+    # Estimate number of tokens (1 token ~ 4 characters in English text)
+    num_tokens = text_length // 4
+    cost_per_token = 0.00006  # Cost per token for text-davinci-003 (as of Aug 2024)
+    estimated_cost = num_tokens * cost_per_token
+    return estimated_cost
 
-    # Main content area for displaying chat messages
-    st.title("Chat with PDF files using Gemini🤖")
-    st.write("Welcome to the chat!")
-    st.sidebar.button('Clear Chat History', on_click=clear_chat_history)
+st.title("PDF Summarizer using OpenAI API")
 
-    if "messages" not in st.session_state.keys():
-        st.session_state.messages = [
-            {"role": "assistant", "content": "upload some pdfs and ask me a question"}]
+# Upload PDF file
+uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
 
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+if uploaded_file is not None:
+    with st.spinner("Reading PDF..."):
+        text = read_pdf(uploaded_file)
+    
+    st.write("**Extracted Text:**")
+    st.write(text[:1000] + "...")  # Display first 1000 characters as a preview
 
-    if prompt := st.chat_input():
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
+    with st.spinner("Summarizing..."):
+        summary = summarize_text(text)
+    
+    st.write("**Summary:**")
+    st.write(summary)
 
-        if st.session_state.messages[-1]["role"] != "assistant":
-            with st.chat_message("assistant"):
-                with st.spinner("Thinking..."):
-                    response = user_input(prompt)
-                    if response:
-                        placeholder = st.empty()
-                        full_response = ''
-                        for item in response['output_text']:
-                            full_response += item
-                            placeholder.markdown(full_response)
-                        placeholder.markdown(full_response)
-                    if response is not None:
-                        message = {"role": "assistant", "content": full_response}
-                        st.session_state.messages.append(message)
+    # Estimate and display token cost
+    estimated_cost = estimate_token_cost(len(text))
+    st.write(f"**Estimated Token Cost:** ${estimated_cost:.4f}")
 
-if __name__ == "__main__":
-    main()
+    # Additional cost estimate for a 10-page PDF (assuming similar content density)
+    avg_cost_per_page = estimated_cost / (uploaded_file.getbuffer().nbytes / 1024 / 1024) * 10
+    st.write(f"**Estimated Cost for a 10-page PDF:** ${avg_cost_per_page:.4f}")
+

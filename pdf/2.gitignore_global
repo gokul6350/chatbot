@@ -1,0 +1,45 @@
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use("agg")
+import numpy as np
+from inverse_k import inverse_k2dof as ik
+from matplotlib.widgets import Slider
+import math
+from datetime import datetime
+L1 = 12.5
+L2 = 12.5
+end_effector_x = -21
+end_effector_y = 0
+def update_simulation():
+    joint2_x = L1 * np.cos(theta1)
+    joint2_y = L1 * np.sin(theta1)
+    end_effector_x_sim = joint2_x + L2 * np.cos(theta1 + theta2)
+    end_effector_y_sim = joint2_y + L2 * np.sin(theta1 + theta2)
+    ax.clear()
+    ax.plot([0, joint2_x], [0, joint2_y], 'r-')
+    ax.plot([joint2_x, end_effector_x_sim], [joint2_y, end_effector_y_sim], 'b-')
+    ax.plot(0, 0, 'ro')  # Joint 1
+    ax.plot(joint2_x, joint2_y, 'ro')  # Joint 2
+    ax.plot(end_effector_x_sim, end_effector_y_sim, 'bo')  # End effector
+    ax.set_xlim([-30, 30])
+    ax.set_ylim([-30, 30])
+    ax.set_aspect('equal', adjustable='box')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_title('2-DOF Robotic Arm Simulation')
+    ax.grid(True)
+    plt.draw()
+def sim_inverse_k(end_effector_x,end_effector_y):
+    p,initial_theta1, initial_theta2 = ik(end_effector_x, end_effector_y, L1, L2)
+    global theta1,theta2,ax
+    theta1 =  math.radians(initial_theta1*-1)
+    theta2 =  math.radians(initial_theta2*-1)
+    fig, ax = plt.subplots()
+    update_simulation()
+    current_time = datetime.now()
+    formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
+    axcolor = 'lightgoldenrodyellow'
+    plt.savefig(f'logs/sim-{formatted_time}.png')
+
+    return initial_theta1, initial_theta2
+sim_inverse_k(12,5)    
